@@ -1,0 +1,270 @@
+---
+title: "Project1"
+author: "Khushi Patel, Anish Kolan, Matthew Luo"
+date: "2024-03-20"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+## Context
+This data is derived from an experiment conducted that examines the effects of anti-anxiety medicine. The participants were over 25 years of age and consisted of both genders. Participants first completed a memory test before drug exposure. In addition, happy or sad memories were primed for 10 minutes prior to testing. 
+
+There are three types of drugs: Alprazolam, Triazolam, Sugar Tablet (Placebo). 
+
+There are also three different levels of dosages that were administered. 
+
+Participants were tested every day for 1 week.
+
+At the end of the experiment, once "addiction" was acheived, the participants completed a memory test once again and the data was documented.
+
+## Data
+In this dataset, there are 8 variable columns:
+
+  - **first_name**: a categorical value with first name of subject
+  - **last_name**: a categorical value with last name of subject
+  - **age**: a quantitative value that refers to subject's age
+  - **Happy_Sad_group**: a categorical value (H: Happy, S: Sad) that refers to the type of memory exposed to the subject 10 minutes before testing
+  - **Dosage**: a categorical value with values 1 - 3 (1 is low, 2 is medium, 3 is over recommended daily intake)
+  - **Drug**: a categorical value with values A (Alprazolam), T (Triazolam), S (Sugar Tablet)
+  - **Mem_Score_Before**: quantitative value that indicates how long it took to finish a memory test prior to drug exposure
+  - **Mem_Score_After**: quantitative value that indicates how long it took to finish a memory test after 1 week of drug use
+
+There is 1 output column:
+
+  - **Diff**: quantitative value that is the difference between memory score before and after
+  
+
+\break
+
+
+
+# Problem Definition
+Does the type and dosage of anti-anxiety medicine have a noticeable effect on memory recall? Do other factors such as emotional priming with happy or sad memories and age also play a role? 
+
+
+# Import the data
+```{r}
+raw_df <- read.csv("Islander_data.csv")
+```
+
+# Install Required Packages
+```{r, message = FALSE}
+library(dplyr)
+```
+
+# Clean the data
+```{r}
+sum(is.na(raw_df)) # There a no na rows
+
+df <- select(raw_df, -first_name, -last_name) # remove the first and last name columns
+head(df)
+
+
+```
+
+# Exploratory Data Analysis
+
+
+## We first view the data in a barplot where we compare the difference of memory recall length with each Type of drug (Alprazolam, Triazolam, and Sugar Tablets (Placebo)).
+
+Using the information we have, we subset the data into only having the Drug and Diff columns for easier access when calculating and visualizing the data.
+```{r}
+# Subset the data for drugs A, T, and S
+drug_subset <- subset(df, Drug %in% c("A", "T", "S"), select = c("Drug", "Diff"))
+head(drug_subset)
+
+```
+
+After subsetting the data, we look to find the mean Diff values for each drug type.
+```{r}
+# Calculate mean differences for each drug
+
+mean_diff <- tapply(drug_subset$Diff, drug_subset$Drug, mean)
+
+# Create barplot
+barplot(mean_diff, 
+        main = "Avg Diff in Memory Performance for Drug Types", 
+        xlab = "Drug Type", 
+        ylab = "Avg Diff in Memory Performance", 
+        col = rainbow(3),
+        names.arg = c("Alprazolam", "Triazolam", "Sugar Tablet"),
+        ylim = c(-2,11))
+
+abline(h = 0, col = "black")
+
+rounded_mean_diff <- round(mean_diff, digits = 2)
+
+# Calculate the center of each bar
+bar_centers <- barplot(mean_diff, plot = FALSE)
+
+# Add text labels with rounded mean_diff values at the center of each bar
+text(x = bar_centers, 
+     y = mean_diff, 
+     label = as.character(rounded_mean_diff), 
+     cex = 1.2, 
+     adj = c(0.5, -1.1),
+     col = "black")
+```
+
+After visualizing the data, we conclude that the drug Alprazolam has a significant effect on the memory retention for patients. As the mean difference for memory length is much higher with Alprazolam versus Triazolam and Sugar Tablets, it is understood that patients usually take a longer time to finish the memory test when they take the Alprazolam drug.
+
+\break
+
+
+## Based on the previous information, we will observe the data between different dosages of the drug Alprazolam and the mean difference for memory length.
+
+
+Using specifically the Drug "A" which represents Alprazolam, we select the different Dosage levels (1: Low, 2: Medium, 3: Over recommended daily amount). Using these dosage levels, we find the mean difference for memory length within this specific drug.
+```{r}
+# Find the average diff values of each dosage for Alprazolam
+alprazolam_data = filter(df, Drug == 'A')
+
+avg_diff = cbind(
+  alprazolam_data %>% filter(Dosage == 1) %>% summarize(mean(Diff)),
+  alprazolam_data %>% filter(Dosage == 2) %>% summarize(mean(Diff)),
+  alprazolam_data %>% filter(Dosage == 3) %>% summarize(mean(Diff))
+)
+```
+
+After we get the mean difference values within drug Alprazolam for each type of dosage, we can visualize the data with a barplot and represent each dosage level with an assigned color.
+```{r}
+myplot = barplot(unlist(avg_diff),
+                 main = "Avg Diff in Memory Performance for Each Alprazolam Dosage",
+                 xlab = "Dosage Level",
+                 ylab = "Avg Diff in Memory Performance",
+                 names.arg = c("Low (1mg)", "Medium (3mg)", "High(5mg)"),
+                 col = c("green","yellow","red"),
+                 ylim = c(0, 25))
+
+text(x = myplot, y = avg_diff, label = as.character(round(avg_diff, 2)), cex = 1, pos = 3)
+```
+Based on the data visualized from the barplot, we can conclude that high dosage levels within this Alprazolam Drug significantly effects the subject's memory retention. The high dosage level has a mean difference in memory performance value of about 22.64 seconds where the medium dosage level has an average difference time of 5.88 seconds, and the low dosage level has an average difference time of 0.3 seconds. Therefore, the higher levels indicate poorer memory performance from the subjects.
+
+\break
+
+
+
+
+## Next, we can seek to understand if age contributes to the difference in the memory.
+
+First, to understand the distribution of age, we can make a histogram.
+```{r}
+Age = df$age
+Diff = df$Diff
+hist(Age, col = "purple", ylim = c(0,50))
+```
+There appears to be a prominent concentration of younger individuals in this experiment. There is less frequency as the age decreases.
+
+Let's create a scatterplot to visualize the relationship between age and diff. 
+We can also represent each drug as a different color. Alprazolam is red, Triazolam is green, Sugar Tablet is blue below.
+```{r}
+# Create a vector of colors based on the Drug variable
+drug_colors <- c("A" = "red", "T" = "green", "S" = "blue")
+
+# Plot the points with colors based on Drug
+plot(Age, Diff, pch = 16, xlab = 'Age', ylab = 'Avg Diff of Memory Performance', 
+     main = 'Avg Diff of Memory Performance vs Age', col = drug_colors[df$Drug])
+
+```
+Visually, there does not appear to be a correlation between the age and the diff. We can check this using the correlation function
+```{r}
+cor(Age, Diff)
+```
+This value suggests a very weak negative correlation between the diff and age.
+
+\break 
+
+## We also want to also understand if there is a correlation between age and the initial memory test prior to the drug usage.
+```{r}
+InitMemTest = df$Mem_Score_Before
+
+plot(Age, 
+     InitMemTest, 
+     pch = 16, 
+     xlab = "Age", 
+     ylab = "Initial Memory Test Times", 
+     main = "Memory Performance Prior Drug Usage vs Age")
+
+```
+After viewing the scatterplot graph, we couldn't observe any sort of correlation between age and the initial memory test score, so we used the correlation function to get a more specific value.
+
+```{r}
+cor(Age, InitMemTest)
+```
+The value presented here is close to zero which presents a very weak positive correlation between age and the initial memory test prior to the drug usage.
+
+Overall, we can note that age is not at all a prominent or useful feature when it comes to the difference in performance of memory.
+
+
+
+
+
+
+## Now, we can investigate another potential factor that may have an impact on the memory retention which is whether the subject was placed in a happy or sad priming group.
+As mentioned earlier, research shows that sad memories invokes better memory recall whereas, happy memories are more susceptible to false memories. With this prior information, **we hypothesize that people placed in the happy priming group might have higher diff values than people who were placed in sad priming groups. **
+```{r}
+# Find the average diff values of each 
+avg_diff = cbind(
+  df %>% filter(Happy_Sad_group == 'S') %>% summarize(mean(Diff)),
+  df %>% filter(Happy_Sad_group == 'H') %>% summarize(mean(Diff))
+)
+
+myplot = barplot(unlist(avg_diff),
+                 main = "Avg Difference in Memory Performance for Each Priming Block",
+                 xlab = "Type of Memory Priming",
+                 ylab = "Differnece in Memory Performance",
+                 names.arg = c("Sad", "Happy"),
+                 col = c("blue","pink"),
+                 ylim = c(0, 3.5))
+
+text(x = myplot, y = avg_diff, label = as.character(round(avg_diff, 2)), cex = 1, pos = 3)
+```
+We can see that there is a slight difference between sad and happy memory priming. Priming with sad memories results in a slightly greater difference in performance. This means that priming with sad memories results in slightly worse memory. However, the difference is small and given the small samples size this difference may not be statistically significant, but this does reveal that the results were not entirely consistent with our hypothsis for this plot. 
+
+\break
+
+
+
+
+## Since we know Drug A shows the worst memory performance, let's examine whether experiencing sad and happy memory priming while taking this specific drug shows any differences. 
+
+We first subset the data for the drug A (Alprazolam) and filtering out the Happy and Sad groups based on the values of "S" and "H".
+```{r}
+# Subset the data for drug A
+drug_A_subset <- filter(df, Drug == "A")
+
+avg_diff_drug_A <- cbind(
+  drug_A_subset %>% filter(Happy_Sad_group == 'S') %>% summarize(mean(Diff)),
+  drug_A_subset %>% filter(Happy_Sad_group == 'H') %>% summarize(mean(Diff))
+)
+
+avg_diff_drug_A
+```
+
+After calculating the means difference of memory performance based on Sad and Happy priming, we displayed the information on a barplot.
+```{r}
+myplot = barplot(unlist(avg_diff_drug_A),
+                 main = "Avg Diff in Memory Performance for Sad/ Happy Priming in Drug A",
+                 xlab = "Type of Memory Priming",
+                 ylab = "Avg Diff in Memory Performance",
+                 names.arg = c("Sad", "Happy"),
+                 col = c("blue","green"),
+                 ylim = c(0, 12))
+text(x = myplot, y = avg_diff_drug_A, label = as.character(round(avg_diff_drug_A, 2)), cex = 1, pos = 3)
+```
+We anticipated a larger change between Sad and Happy priming since the drug Alprazolam has larger effects on the subjects. After viewing the barplot, we conclude that the sad memory priming during the experiment yielded slightly poorer memory performance. This had no difference when we tested for the sad/happy priming changes with all drugs.
+
+
+
+# Conclusion
+
+
+
+
+
+
